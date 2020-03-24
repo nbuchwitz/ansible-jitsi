@@ -1,27 +1,6 @@
 ---
 - hosts: jitsi
   become: True
-  tasks:
-    - name: Configure enda apt repo
-      apt_repository:
-        repo: 'deb [trusted=yes] http://repo.buero.enda.eu/debian ./'
-        filename: enda
-      register: enda_repo
-      tags: enda_repo
-
-    - name: Reload apt cache
-      apt:
-        update_cache: yes
-      when: enda_repo.changed
-      tags: enda_repo
-
-    - name: Install enda ca
-      apt:
-        name: enda-cas
-      tags: enda_ca
-
-- hosts: jitsi
-  become: True
   vars_files: vars.yml
   pre_tasks:
       - name: Enable TLS transport for apt
