@@ -1,0 +1,26 @@
+# public domainname of this jitsi instance
+jitsi_domain: "meet.example.com"
+# internal realm for anonymous user
+jitsi_guestdomain: "guest.{{ jitsi_domain }}"
+# create certificates via jitsi-letsencrypt script
+jitsi_letsencrypt: true
+# mail address for letsencrypt account
+certbot_mail: "admin@example.com"
+
+jitsi_ad:
+  # dc hostname
+  hostname: "dc01.example.com"
+  # bind user
+  bind_dn: "cn=jitsi,cn=Users,dc=example,dc=com"
+  # bind user password
+  bind_password: "secret"
+  # use TLS for bind
+  use_tls:  true
+  # base DN for users
+  base_dn: "ou=Company,dc=example,dc=com"
+  # filter for users
+  filter: "(&(objectClass=User)(memberof=CN=video-conference,OU=Company,DC=example,DC=com))"
+  # field with username
+  usernamefield: 'sAMAccountName'
+  # field with name
+  namefield: 'cn'

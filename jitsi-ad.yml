@@ -1,0 +1,47 @@
+- name: Install prosody ldap module
+  apt:
+    name: prosody-modules
+
+- name: Configure ldap auth
+  template:
+    src: "prosody/ldap.conf.lua.j2"
+    dest: "/etc/prosody/conf.d/ldap.cfg.lua"
+  notify: restart prosody
+
+- name: Patch prosody.cfg.lua
+  lineinfile:
+    path: "/etc/prosody/prosody.cfg.lua"
+    line: "consider_bosh_secure = true"
+    insertbefore: 'VirtualHost "localhost"'
+  notify: restart prosody
+
+- name: Patch prosody virtual host (1/2)
+  blockinfile:
+    path: "/etc/prosody/conf.d/{{ jitsi_domain }}.cfg.lua"
+    insertbefore: 'VirtualHost "{{ jitsi_domain }}"'
+    block: |
+        VirtualHost "{{ jitsi_guestdomain }}"
+            authentication = "anonymous"
+            c2s_require_encryption = false
+    marker: "-- {mark} ANSIBLE MANAGED BLOCK"
+  notify: restart prosody
+
+- name: Patch prosody virtual host (2/2)
+  replace:
+    path: "/etc/prosody/conf.d/{{ jitsi_domain }}.cfg.lua"
+    after: 'VirtualHost "{{ jitsi_domain }}"'
+    regexp: "^(\\s+)authentication = \"anonymous\"$"
+    replace: '\1authentication = "ldap2"'
+  notify: restart prosody
+
+- name: Patch jicofo
+  lineinfile:
+    path: "/etc/jitsi/jicofo/sip-communicator.properties"
+    line: "org.jitsi.jicofo.auth.URL=XMPP:{{ jitsi_domain }}"
+  notify: restart jicofo
+
+- name: Configure anonymous domain in jitsi meet
+  lineinfile:
+    path: "/etc/jitsi/meet/{{ jitsi_domain }}-config.js"
+    regexp: "^\\s*/?/?\\s*anonymousdomain: '.*',$"
+    line: "anonymousdomain: '{{ jitsi_guestdomain }}',"

@@ -1,0 +1,91 @@
+---
+- hosts: jitsi
+  become: True
+  tasks:
+    - name: Configure enda apt repo
+      apt_repository:
+        repo: 'deb [trusted=yes] http://repo.buero.enda.eu/debian ./'
+        filename: enda
+      register: enda_repo
+      tags: enda_repo
+
+    - name: Reload apt cache
+      apt:
+        update_cache: yes
+      when: enda_repo.changed
+      tags: enda_repo
+
+    - name: Install enda ca
+      apt:
+        name: enda-cas
+      tags: enda_ca
+
+- hosts: jitsi
+  become: True
+  vars_files: vars.yml
+  pre_tasks:
+      - name: Enable TLS transport for apt
+        apt:
+          name: apt-transport-https
+        tags:
+          - jitsi_repo
+  tasks:
+    - name: Import apt repo key
+      apt_key:
+          url:  https://download.jitsi.org/jitsi-key.gpg.key
+      tags: jitsi_repo
+
+    - name: Configure jitsi apt repo
+      apt_repository:
+        repo: 'deb https://download.jitsi.org stable/'
+        filename: jitsi-stable
+      register: jitsi_repo
+      tags: jitsi_repo
+
+    - name: Reload apt cache
+      apt:
+        update_cache: yes
+      when: jitsi_repo.changed
+      tags: jitsi_repo
+
+    - name: Set settings for debconf (1/2)
+      shell: echo 'jitsi-meet-web-config jitsi-videobridge/jvb-hostname string {{ jitsi_domain }}' | debconf-set-selections
+
+    - name: Set settings for debconf (2/2)
+      shell: echo 'jitsi-meet-web-config jitsi-meet/jvb-hostname string {{ jitsi_domain }}' | debconf-set-selections
+
+    - name: Install jitsi packages
+      apt:
+        name:
+          - jitsi-meet
+          - certbot
+
+    - stat:
+        path: "/etc/letsencrypt/live/{{ jitsi_domain }}"
+      register: le_dir
+      when: jitsi_letsencrypt
+
+    - name: Monkeypatch the jitsi-letsencrypt script
+      lineinfile:
+        regexp: '^read EMAIL$'
+        line: 'EMAIL={{ certbot_mail}}'
+        path: /usr/share/jitsi-meet/scripts/install-letsencrypt-cert.sh
+      when: jitsi_letsencrypt and not le_dir.stat.isdir
+
+    - name: Run jitsi-letsencrypt script
+      shell: '/usr/share/jitsi-meet/scripts/install-letsencrypt-cert.sh'
+      when: jitsi_letsencrypt and not le_dir.stat.isdir
+
+    - include_tasks: jitsi-ad.yml
+      when: jitsi_ad
+
+  handlers:
+    - name: restart prosody
+      service:
+        name: prosody
+        state: restarted
+
+    - name: restart jicofo
+      service:
+        name: jicofo
+        state: restarted

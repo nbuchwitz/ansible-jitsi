@@ -1,0 +1,15 @@
+authentication = 'ldap2'
+
+ldap = {
+    hostname = '{{ jitsi_ad.hostname }}',
+    bind_dn = '{{ jitsi_ad.bind_dn }}',
+    bind_password = '{{ jitsi_ad.bind_password }}',
+    use_tls = {{ 'true' if jitsi_ad.use_tls else 'false' }},
+    user = {
+        basedn = '{{ jitsi_ad.base_dn }}',
+        --filter = '(&(objectClass=User)(AccountActive=TRUE))',
+        filter        = '{{ jitsi_ad.filter }}',
+        usernamefield = '{{ jitsi_ad.usernamefield }}',
+        namefield = '{{ jitsi_ad.namefield }}',
+    },
+}
